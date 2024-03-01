@@ -1,7 +1,13 @@
+"""
+Module with support functions for morphology
+
+"""
+
 from __future__ import division
 from __future__ import unicode_literals
 from __future__ import print_function
 from __future__ import absolute_import
+
 # Code adapted from https://github.com/ahwillia/PyNeuron-Toolbox under MIT license
 
 
@@ -9,11 +15,14 @@ from builtins import zip
 from builtins import range
 
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import object
 import numpy as np
 import pylab as plt
-from matplotlib.pyplot import cm
+from netpyne import __gui__
+if __gui__:
+    from matplotlib.pyplot import cm
 import string
 from neuron import h
 import numbers
@@ -22,8 +31,9 @@ import numbers
 h.load_file('stdlib.hoc')
 h.load_file('import3d.hoc')
 
+
 class Cell(object):
-    def __init__(self,name='neuron',soma=None,apic=None,dend=None,axon=None):
+    def __init__(self, name='neuron', soma=None, apic=None, dend=None, axon=None):
         self.soma = soma if soma is not None else []
         self.apic = apic if apic is not None else []
         self.dend = dend if dend is not None else []
@@ -39,6 +49,7 @@ class Cell(object):
 
     def __str__(self):
         return self.name
+
 
 def load(filename, fileformat=None, cell=None, use_axon=True, xshift=0, yshift=0, zshift=0):
     """
@@ -59,13 +70,13 @@ def load(filename, fileformat=None, cell=None, use_axon=True, xshift=0, yshift=0
         # pull the morphology for the demo from NeuroMorpho.Org
         from PyNeuronToolbox import neuromorphoorg
         with open('c91662.swc', 'w') as f:
-            f.write(neuromorphoorg.morphology('c91662'))
+        f.write(neuromorphoorg.morphology('c91662'))
         cell = load_swc(filename)
 
     """
 
     if cell is None:
-        cell = Cell(name=string.join(filename.split('.')[:-1]))
+        cell = Cell(name='.'.join(filename.split('.')[:-1]))
 
     if fileformat is None:
         fileformat = filename.split('.')[-1]
@@ -80,7 +91,7 @@ def load(filename, fileformat=None, cell=None, use_axon=True, xshift=0, yshift=0
     elif fileformat == 'asc':
         morph = h.Import3d_Neurolucida3()
     else:
-        raise Exception('file format `%s` not recognized'%(fileformat))
+        raise Exception('file format `%s` not recognized' % (fileformat))
     morph.input(filename)
 
     # easiest to instantiate by passing the loaded morphology to the Import3d_GUI
@@ -102,9 +113,9 @@ def load(filename, fileformat=None, cell=None, use_axon=True, xshift=0, yshift=0
 
         # skip everything else if it's an axon and we're not supposed to
         # use it... or if is_subsidiary
-        if (not(use_axon) and cell_part == 2) or swc_sec.is_subsidiary:
+        if (not (use_axon) and cell_part == 2) or swc_sec.is_subsidiary:
             continue
-        
+
         # figure out the name of the new section
         if cell_part not in name_form:
             raise Exception('unsupported point type')
@@ -112,15 +123,14 @@ def load(filename, fileformat=None, cell=None, use_axon=True, xshift=0, yshift=0
 
         # create the section
         sec = h.Section(name=name)
-        
+
         # connect to parent, if any
         if swc_sec.parentsec is not None:
             sec.connect(real_secs[swc_sec.parentsec.hname()](swc_sec.parentx))
 
         # define shape
         if swc_sec.first == 1:
-            h.pt3dstyle(1, swc_sec.raw.getval(0, 0), swc_sec.raw.getval(1, 0),
-                        swc_sec.raw.getval(2, 0), sec=sec)
+            h.pt3dstyle(1, swc_sec.raw.getval(0, 0), swc_sec.raw.getval(1, 0), swc_sec.raw.getval(2, 0), sec=sec)
 
         j = swc_sec.first
         xx, yy, zz = [swc_sec.raw.getrow(i).c(j) for i in range(3)]
@@ -133,59 +143,62 @@ def load(filename, fileformat=None, cell=None, use_axon=True, xshift=0, yshift=0
         if dd.size() == 1:
             # single point soma; treat as sphere
             x, y, z, d = [dim.x[0] for dim in [xx, yy, zz, dd]]
-            for xprime in [x - d / 2., x, x + d / 2.]:
+            for xprime in [x - d / 2.0, x, x + d / 2.0]:
                 h.pt3dadd(xprime + xshift, y + yshift, z + zshift, d, sec=sec)
         else:
             for x, y, z, d in zip(xx, yy, zz, dd):
                 h.pt3dadd(x + xshift, y + yshift, z + zshift, d, sec=sec)
 
-        # store the section in the appropriate list in the cell and lookup table               
-        sec_list[cell_part].append(sec)    
+        # store the section in the appropriate list in the cell and lookup table
+        sec_list[cell_part].append(sec)
         real_secs[swc_sec.hname()] = sec
 
     cell.all = cell.soma + cell.apic + cell.dend + cell.axon
     return cell
 
+
 def sequential_spherical(xyz):
     """
     Converts sequence of cartesian coordinates into a sequence of
     line segments defined by spherical coordinates.
-    
+
     Args:
         xyz = 2d numpy array, each row specifies a point in
               cartesian coordinates (x,y,z) tracing out a
               path in 3D space.
-    
+
     Returns:
         r = lengths of each line segment (1D array)
         theta = angles of line segments in XY plane (1D array)
         phi = angles of line segments down from Z axis (1D array)
     """
-    d_xyz = np.diff(xyz,axis=0)
-    
-    r = np.linalg.norm(d_xyz,axis=1)
-    theta = np.arctan2(d_xyz[:,1], d_xyz[:,0])
-    hyp = d_xyz[:,0]**2 + d_xyz[:,1]**2
-    phi = np.arctan2(np.sqrt(hyp), d_xyz[:,2])
-    
-    return (r,theta,phi)
+    d_xyz = np.diff(xyz, axis=0)
 
-def spherical_to_cartesian(r,theta,phi):
+    r = np.linalg.norm(d_xyz, axis=1)
+    theta = np.arctan2(d_xyz[:, 1], d_xyz[:, 0])
+    hyp = d_xyz[:, 0] ** 2 + d_xyz[:, 1] ** 2
+    phi = np.arctan2(np.sqrt(hyp), d_xyz[:, 2])
+
+    return (r, theta, phi)
+
+
+def spherical_to_cartesian(r, theta, phi):
     """
     Simple conversion of spherical to cartesian coordinates
-    
+
     Args:
         r,theta,phi = scalar spherical coordinates
-    
+
     Returns:
         x,y,z = scalar cartesian coordinates
     """
     x = r * np.sin(phi) * np.cos(theta)
     y = r * np.sin(phi) * np.sin(theta)
     z = r * np.cos(phi)
-    return (x,y,z)
+    return (x, y, z)
 
-def find_coord(targ_length,xyz,rcum,theta,phi):
+
+def find_coord(targ_length, xyz, rcum, theta, phi):
     """
     Find (x,y,z) ending coordinate of segment path along section
     path.
@@ -202,82 +215,87 @@ def find_coord(targ_length,xyz,rcum,theta,phi):
     #   [2] Find endpoint in spherical coords and convert to cartesian
     i = np.nonzero(rcum <= targ_length)[0][-1]
     if i == len(theta):
-        return xyz[-1,:]
+        return xyz[-1, :]
     else:
-        r_lcl = targ_length-rcum[i] # remaining length along line segment
-        (dx,dy,dz) = spherical_to_cartesian(r_lcl,theta[i],phi[i])
-        return xyz[i,:] + [dx,dy,dz]
+        r_lcl = targ_length - rcum[i]  # remaining length along line segment
+        (dx, dy, dz) = spherical_to_cartesian(r_lcl, theta[i], phi[i])
+        return xyz[i, :] + [dx, dy, dz]
 
-def interpolate_jagged(xyz,nseg):
+
+def interpolate_jagged(xyz, nseg):
     """
     Interpolates along a jagged path in 3D
-    
+
     Args:
         xyz = section path specified in cartesian coordinates
         nseg = number of segment paths in section path
-        
+
     Returns:
         interp_xyz = interpolated path
     """
-    
+
     # Spherical coordinates specifying the angles of all line
     # segments that make up the section path
-    (r,theta,phi) = sequential_spherical(xyz)
-    
+    (r, theta, phi) = sequential_spherical(xyz)
+
     # cumulative length of section path at each coordinate
-    rcum = np.append(0,np.cumsum(r))
+    rcum = np.append(0, np.cumsum(r))
 
     # breakpoints for segment paths along section path
-    breakpoints = np.linspace(0,rcum[-1],nseg+1)
-    np.delete(breakpoints,0)
-    
+    breakpoints = np.linspace(0, rcum[-1], nseg + 1)
+    np.delete(breakpoints, 0)
+
     # Find segment paths
     seg_paths = []
     for a in range(nseg):
         path = []
-        
+
         # find (x,y,z) starting coordinate of path
         if a == 0:
-            start_coord = xyz[0,:]
+            start_coord = xyz[0, :]
         else:
-            start_coord = end_coord # start at end of last path
+            start_coord = end_coord  # start at end of last path
         path.append(start_coord)
 
         # find all coordinates between the start and end points
         start_length = breakpoints[a]
-        end_length = breakpoints[a+1]
+        end_length = breakpoints[a + 1]
         mid_boolean = (rcum > start_length) & (rcum < end_length)
         mid_indices = np.nonzero(mid_boolean)[0]
         for mi in mid_indices:
-            path.append(xyz[mi,:])
+            path.append(xyz[mi, :])
 
         # find (x,y,z) ending coordinate of path
-        end_coord = find_coord(end_length,xyz,rcum,theta,phi)
+        end_coord = find_coord(end_length, xyz, rcum, theta, phi)
         path.append(end_coord)
 
         # Append path to list of segment paths
         seg_paths.append(np.array(path))
-    
+
     # Return all segment paths
     return seg_paths
 
-def get_section_path(h,sec):
+
+def get_section_path(h, sec):
     n3d = int(h.n3d(sec=sec))
     xyz = []
-    for i in range(0,n3d):
-        xyz.append([h.x3d(i,sec=sec),h.y3d(i,sec=sec),h.z3d(i,sec=sec)])
+    for i in range(0, n3d):
+        xyz.append([h.x3d(i, sec=sec), h.y3d(i, sec=sec), h.z3d(i, sec=sec)])
     xyz = np.array(xyz)
     return xyz
 
-def get_section_diams(h,sec):
+
+def get_section_diams(h, sec):
     n3d = int(h.n3d(sec=sec))
     diams = []
-    for i in range(0,n3d):
-        diams.append(h.diam3d(i,sec=sec))
+    for i in range(0, n3d):
+        diams.append(h.diam3d(i, sec=sec))
     return diams
 
-def shapeplot(h,ax,sections=None,order='pre',cvals=None,\
-              clim=None,cmap=cm.YlOrBr_r, legend=True,  **kwargs):  # meanLineWidth=1.0, maxLineWidth=10.0,
+
+def shapeplot(
+    h, ax, sections=None, order='pre', cvals=None, clim=None, cmap=cm.YlOrBr_r, legend=True, **kwargs
+):  # meanLineWidth=1.0, maxLineWidth=10.0,
     """
     Plots a 3D shapeplot
 
@@ -295,16 +313,16 @@ def shapeplot(h,ax,sections=None,order='pre',cvals=None,\
     Returns:
         lines = list of line objects making up shapeplot
     """
-    
-    # Default is to plot all sections. 
+
+    # Default is to plot all sections.
     if sections is None:
         if order == 'pre':
-            sections = allsec_preorder(h) # Get sections in "pre-order"
+            sections = allsec_preorder(h)  # Get sections in "pre-order"
         else:
             sections = list(h.allsec())
-    
+
     # Determine color limits
-    if cvals is not None and clim is None: 
+    if cvals is not None and clim is None:
         clim = [np.nanmin(cvals), np.nanmax(cvals)]
 
     # Plot each segement as a line
@@ -313,19 +331,19 @@ def shapeplot(h,ax,sections=None,order='pre',cvals=None,\
 
     allDiams = []
     for sec in sections:
-        allDiams.append(get_section_diams(h,sec))
-    #maxDiams = max([max(d) for d in allDiams])
-    #meanDiams = np.mean([np.mean(d) for d in allDiams])
+        allDiams.append(get_section_diams(h, sec))
+    # maxDiams = max([max(d) for d in allDiams])
+    # meanDiams = np.mean([np.mean(d) for d in allDiams])
 
-    for isec,sec in enumerate(sections):
-        xyz = get_section_path(h,sec)
-        seg_paths = interpolate_jagged(xyz,sec.nseg)
+    for isec, sec in enumerate(sections):
+        xyz = get_section_path(h, sec)
+        seg_paths = interpolate_jagged(xyz, sec.nseg)
         diams = allDiams[isec]  # represent diams as linewidths
-        linewidths = diams # linewidth is in points so can use actual diams to plot
-        # linewidths = [min(d/meanDiams*meanLineWidth, maxLineWidth) for d in diams]  # use if want to scale size 
+        linewidths = diams  # linewidth is in points so can use actual diams to plot
+        # linewidths = [min(d/meanDiams*meanLineWidth, maxLineWidth) for d in diams]  # use if want to scale size
 
-        for (j,path) in enumerate(seg_paths):
-            line, = plt.plot(path[:,0], path[:,1], path[:,2], '-k', **kwargs)
+        for (j, path) in enumerate(seg_paths):
+            (line,) = plt.plot(path[:, 0], path[:, 1], path[:, 2], '-k', **kwargs)
             try:
                 line.set_linewidth(linewidths[j])
             except:
@@ -334,7 +352,7 @@ def shapeplot(h,ax,sections=None,order='pre',cvals=None,\
                 if isinstance(cvals[i], numbers.Number):
                     # map number to colormap
                     try:
-                        col = cmap(int((cvals[i]-clim[0])*255/(clim[1]-clim[0])))
+                        col = cmap(int((cvals[i] - clim[0]) * 255 / (clim[1] - clim[0])))
                     except:
                         col = cmap(0)
                 else:
@@ -345,29 +363,34 @@ def shapeplot(h,ax,sections=None,order='pre',cvals=None,\
             i += 1
     return lines
 
-def shapeplot_animate(v,lines,nframes=None,tscale='linear',\
-                      clim=[-80,50],cmap=cm.YlOrBr_r):
-    """ Returns animate function which updates color of shapeplot """
+
+def shapeplot_animate(v, lines, nframes=None, tscale='linear', clim=[-80, 50], cmap=cm.YlOrBr_r):
+    """Returns animate function which updates color of shapeplot"""
     if nframes is None:
         nframes = v.shape[0]
     if tscale == 'linear':
+
         def animate(i):
-            i_t = int((i/nframes)*v.shape[0])
+            i_t = int((i / nframes) * v.shape[0])
             for i_seg in range(v.shape[1]):
-                lines[i_seg].set_color(cmap(int((v[i_t,i_seg]-clim[0])*255/(clim[1]-clim[0]))))
+                lines[i_seg].set_color(cmap(int((v[i_t, i_seg] - clim[0]) * 255 / (clim[1] - clim[0]))))
             return []
+
     elif tscale == 'log':
+
         def animate(i):
-            i_t = int(np.round((v.shape[0] ** (1.0/(nframes-1))) ** i - 1))
+            i_t = int(np.round((v.shape[0] ** (1.0 / (nframes - 1))) ** i - 1))
             for i_seg in range(v.shape[1]):
-                lines[i_seg].set_color(cmap(int((v[i_t,i_seg]-clim[0])*255/(clim[1]-clim[0]))))
+                lines[i_seg].set_color(cmap(int((v[i_t, i_seg] - clim[0]) * 255 / (clim[1] - clim[0]))))
             return []
+
     else:
         raise ValueError("Unrecognized option '%s' for tscale" % tscale)
 
     return animate
 
-def mark_locations(h,section,locs,markspec='or',**kwargs):
+
+def mark_locations(h, section, locs, markspec='or', **kwargs):
     """
     Marks one or more locations on along a section. Could be used to
     mark the location of a recording or electrical stimulation.
@@ -383,27 +406,27 @@ def mark_locations(h,section,locs,markspec='or',**kwargs):
     """
 
     # get list of cartesian coordinates specifying section path
-    xyz = get_section_path(h,section)
-    (r,theta,phi) = sequential_spherical(xyz)
-    rcum = np.append(0,np.cumsum(r))
+    xyz = get_section_path(h, section)
+    (r, theta, phi) = sequential_spherical(xyz)
+    rcum = np.append(0, np.cumsum(r))
 
     # convert locs into lengths from the beginning of the path
     if type(locs) is float or type(locs) is np.float64:
         locs = np.array([locs])
     if type(locs) is list:
         locs = np.array(locs)
-    lengths = locs*rcum[-1]
+    lengths = locs * rcum[-1]
 
     # find cartesian coordinates for markers
     xyz_marks = []
     for targ_length in lengths:
-        xyz_marks.append(find_coord(targ_length,xyz,rcum,theta,phi))
+        xyz_marks.append(find_coord(targ_length, xyz, rcum, theta, phi))
     xyz_marks = np.array(xyz_marks)
 
     # plot markers
-    line, = plt.plot(xyz_marks[:,0], xyz_marks[:,1], \
-                     xyz_marks[:,2], markspec, **kwargs)
+    (line,) = plt.plot(xyz_marks[:, 0], xyz_marks[:, 1], xyz_marks[:, 2], markspec, **kwargs)
     return line
+
 
 def root_sections(h):
     """
@@ -417,6 +440,7 @@ def root_sections(h):
             roots.append(section)
     return roots
 
+
 def leaf_sections(h):
     """
     Returns a list of all sections that have no children.
@@ -429,33 +453,36 @@ def leaf_sections(h):
             leaves.append(section)
     return leaves
 
+
 def root_indices(sec_list):
     """
     Returns the index of all sections without a parent.
     """
     roots = []
-    for i,section in enumerate(sec_list):
+    for i, section in enumerate(sec_list):
         sref = h.SectionRef(sec=section)
         # has_parent returns a float... cast to bool
         if sref.has_parent() < 0.9:
             roots.append(i)
     return roots
 
+
 def allsec_preorder(h):
     """
     Alternative to using h.allsec(). This returns all sections in order from
     the root. Traverses the topology each neuron in "pre-order"
     """
-    #Iterate over all sections, find roots
+    # Iterate over all sections, find roots
     roots = root_sections(h)
 
     # Build list of all sections
     sec_list = []
     for r in roots:
-        add_pre(h,sec_list,r)
+        add_pre(h, sec_list, r)
     return sec_list
 
-def add_pre(h,sec_list,section,order_list=None,branch_order=None):
+
+def add_pre(h, sec_list, section, order_list=None, branch_order=None):
     """
     A helper function that traverses a neuron's morphology (or a sub-tree)
     of the morphology in pre-order. This is usually not necessary for the
@@ -469,11 +496,12 @@ def add_pre(h,sec_list,section,order_list=None,branch_order=None):
         order_list.append(branch_order)
         if len(sref.child) > 1:
             branch_order += 1
-    
-    for next_node in sref.child:
-        add_pre(h,sec_list,next_node,order_list,branch_order)
 
-def dist_between(h,seg1,seg2):
+    for next_node in sref.child:
+        add_pre(h, sec_list, next_node, order_list, branch_order)
+
+
+def dist_between(h, seg1, seg2):
     """
     Calculates the distance between two segments. I stole this function from
     a post by Michael Hines on the NEURON forum
@@ -482,12 +510,13 @@ def dist_between(h,seg1,seg2):
     h.distance(0, seg1.x, sec=seg1.sec)
     return h.distance(seg2.x, sec=seg2.sec)
 
+
 def all_branch_orders(h):
     """
     Produces a list branch orders for each section (following pre-order tree
     traversal)
     """
-    #Iterate over all sections, find roots
+    # Iterate over all sections, find roots
     roots = []
     for section in h.allsec():
         sref = h.SectionRef(sec=section)
@@ -498,10 +527,11 @@ def all_branch_orders(h):
     # Build list of all sections
     order_list = []
     for r in roots:
-        add_pre(h,[],r,order_list,0)
+        add_pre(h, [], r, order_list, 0)
     return order_list
 
-def branch_order(h,section, path=[]):
+
+def branch_order(h, section, path=[]):
     """
     Returns the branch order of a section
     """
@@ -509,13 +539,14 @@ def branch_order(h,section, path=[]):
     sref = h.SectionRef(sec=section)
     # has_parent returns a float... cast to bool
     if sref.has_parent() < 0.9:
-        return 0 # section is a root
+        return 0  # section is a root
     else:
         nchild = len(list(h.SectionRef(sec=sref.parent).child))
         if nchild <= 1.1:
-            return branch_order(h,sref.parent,path)
+            return branch_order(h, sref.parent, path)
         else:
-            return 1+branch_order(h,sref.parent,path)
+            return 1 + branch_order(h, sref.parent, path)
+
 
 def dist_to_mark(h, section, secdict, path=[]):
     path.append(section)
@@ -529,29 +560,30 @@ def dist_to_mark(h, section, secdict, path=[]):
         return s
     else:
         # print 'end <- start summing: '+str(section.L)
-        return section.L # parent is marked
+        return section.L  # parent is marked
+
 
 def branch_precedence(h):
     roots = root_sections(h)
     leaves = leaf_sections(h)
     seclist = allsec_preorder(h)
-    secdict = { sec:None for sec in seclist }
+    secdict = {sec: None for sec in seclist}
 
     for r in roots:
         secdict[r] = 0
-    
+
     precedence = 1
-    while len(leaves)>0:
+    while len(leaves) > 0:
         # build list of distances of all paths to remaining leaves
         d = []
         for leaf in leaves:
             p = []
             dist = dist_to_mark(h, leaf, secdict, path=p)
-            d.append((dist,[pp for pp in p]))
-        
+            d.append((dist, [pp for pp in p]))
+
         # longest path index
-        i = np.argmax([ dd[0] for dd in d ])
-        leaves.pop(i) # this leaf will be marked
+        i = np.argmax([dd[0] for dd in d])
+        leaves.pop(i)  # this leaf will be marked
 
         # mark all sections in longest path
         for sec in d[i][1]:
@@ -561,8 +593,6 @@ def branch_precedence(h):
         # increment precedence across iterations
         precedence += 1
 
-    #prec = secdict.values()
-    #return [0 if p is None else 1 for p in prec], d[i][1]
-    return [ secdict[sec] for sec in seclist ]
-
-
+    # prec = secdict.values()
+    # return [0 if p is None else 1 for p in prec], d[i][1]
+    return [secdict[sec] for sec in seclist]

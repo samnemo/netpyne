@@ -1,3 +1,6 @@
+/doc/source/netpyne.*.rst
+doc/source/package_reference.rst
+
 /examples/sandbox/LEMS_sandbox.xml
 /examples/M1/LEMS_M1.xml
 
@@ -17,6 +20,7 @@ i386
 *.dll
 umac
 .DS_Store
+venv/
 
 /examples/HybridTut/*.nml
 /examples/HybridTut/*.mod
@@ -48,3 +52,22 @@ umac
 /examples/M1/*.png
 /examples/M1/*.pov
 /examples/HHTut/temp.json
+.vscode
+/examples/HHTut/HHTut_plot_2Dnet.png
+/examples/HHTut/HHTut_regen.py
+/examples/HHTut/HHTut_traces.png
+
+.idea/
+
+examples/asdOptim/simple/
+
+*.pid
+
+examples/optunaOptim/simple/
+/examples/NeuroMLImport/test/HHTut.net.nml
+/examples/NeuroMLImport/test/HybridTut.net.nml
+/examples/NeuroMLImport/test/LEMS_HHTut.xml
+/examples/NeuroMLImport/test/LEMS_HybridTut.xml
+/examples/NeuroMLImport/test/M1.net.nml
+/examples/NeuroMLImport/test/LEMS_M1.xml
+arm64
